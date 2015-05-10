@@ -6,7 +6,7 @@
 void print_name(const char *key, void *buf, void *userp)
 {
 	char *name = *(char **)buf;
-	struct trie(char *) *trie = userp;
+	struct trie *trie = userp;
 
 	printf("names[\"%s\"]: \"%s\"\n", key, name);
 	if (!strcmp(name, "McClane")) {
@@ -54,12 +54,16 @@ int main()
 	printf("free_name was called %d times.\n", cnt);
 
 	struct trie(double) numbers;
+	double ret;
 
 	tr_init(&numbers);
 	tr_set(&numbers, "1", 1.0);
 	tr_set(&numbers, "2", 2.0);
-	tr_set(&numbers, "3", 4.0);
 	tr_set(&numbers, "3", 3.0);
+	tr_get(&numbers, "3", &ret);
+	tr_set(&numbers, "3", ret + 1.0);
+	if (!tr_has(&numbers, "4"))
+		printf("There is no key \"4\".\n");
 	tr_release(&numbers);
 	return 0;
 }

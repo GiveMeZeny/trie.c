@@ -29,7 +29,7 @@ struct trieb {
 	void *userp;
 };
 
-/* `struct trie x` is a void *-trie */
+/* `struct trie x` is a `void *`-trie */
 struct trie trie(void *);
 
 /* forward declarations */
@@ -90,7 +90,7 @@ void tr_setfree(tr_xdealloc routine);
 #define tr_setuserp(tr, ptr) ((tr)->s.userp = (ptr), 0)
 
 /**
- * tr_has() - checks whether a key is set
+ * tr_has() - checks whether a key exists
  * @tr: typed pointer to the trie
  * @key: pointer to a null terminated string
  *
@@ -99,11 +99,11 @@ void tr_setfree(tr_xdealloc routine);
 #define tr_has(tr, key) ((tr_getp)(&(tr)->s, (key)) != NULL)
 
 /**
- * tr_setp() - set a key
+ * tr_setp() - get a pointer to a key's value
  * @tr: typed pointer to the trie
  * @key: pointer to a null terminated string
  *
- * If @trie doesn't have @key, it is added.
+ * If @trie doesn't have @key, it is created.
  *
  * Return: Pointer to the key's value, or NULL if malloc() failed.
  */
@@ -117,7 +117,7 @@ void tr_setfree(tr_xdealloc routine);
  * @key: pointer to a null terminated string
  * @...: value to set
  *
- * If @tr already has @key, its value is overwritten. Otherwise @key is added.
+ * If @tr already has @key, its value is overwritten. Otherwise @key is created.
  *
  * Return: When successful 1, or otherwise 0 if malloc() failed.
  *
@@ -130,7 +130,7 @@ void tr_setfree(tr_xdealloc routine);
 	 (*(tr)->ptr = (__VA_ARGS__), 1) : 0)
 
 /**
- * tr_getp() - retrieve a key
+ * tr_getp() - get a pointer to a key's value
  * @tr: typed pointer to the trie
  * @key: pointer to a null terminated string
  *

@@ -1,6 +1,6 @@
 trie.c
 ======
-A type-safe and generic C99-compliant associative array (_string => T_) implemented as a trie.
+A type-safe and generic C99-compliant associative array (`string => T`) implemented as a simple trie.
 
 ## Example
 
@@ -11,45 +11,61 @@ A type-safe and generic C99-compliant associative array (_string => T_) implemen
     tr_init(&numbers);
     tr_set(&numbers, "1", 1.0);
     tr_set(&numbers, "2", 2.0);
-    tr_set(&numbers, "3", 4.0);
     tr_set(&numbers, "3", 3.0);
-    if (tr_has(&numbers, "3"))
-        tr_get(&numbers, "3", &ret);
+    tr_get(&numbers, "3", &ret);
+    tr_set(&numbers, "3", ret + 1.0);
+    if (!tr_has(&numbers, "4"))
+        printf("There is no key \"4\".\n");
     tr_release(&numbers);
 ```
-See _trie.h_ for documenting comments.
 
-## Creating
+## Installation
 
-A trie is created like this:
+Use the makefile to compile a static/shared library or simply drop [trie.c](trie.c) and [trie.h](trie.h) into your project.
+
+## Usage
+
+See [trie.h](trie.h) for more details.
+
+#### Creating
+
+A trie can be of any type and is created like this:
+
 ```c
     struct trie(int) myints;
-    struct trie(char *) mycharps;
-    struct trie myvoidps; /* shortcut for trie(void *) */
+    struct trie(char *) mycharptrs;
+    struct trie myvoidptrs; /* see below */
     struct trie(struct xyz) mystructs;
 ```
-Before you can use or access it, you need to initialize it:
+
+Before you can use or access the trie, it has to be initialized:
+
 ```c
     tr_init(&mytrie);
 ```
+
 After you're finished, release it:
+
 ```c
     tr_release(&mytrie);
 ```
+
 This deletes all of its keys and reinitializes the trie.
 
 To retrieve the number of keys a trie contains:
+
 ```c
     size_t length = mytrie.len;
 ```
 
-##### Note
+###### Note
 
-If you need to pass a trie to other functions, you should declare its type like this:
+If you want to pass a trie between functions, you have to pre-declare its type:
+
 ```c
     struct int_trie trie(int);
 
-    void fun2(struct int_trie *ptr)
+    void print_len(struct int_trie *ptr)
     {
         printf("%zu\n", ptr->len);
     }
@@ -59,56 +75,55 @@ If you need to pass a trie to other functions, you should declare its type like 
         struct int_trie myints;
 
         tr_init(&myints);
-        tr_set(&myints, "bla", 5);
+        tr_set(&myints, "bla", 10);
+        print_len(&myints);
         tr_release(&myints);
-        return _0_;
+        return 0;
     }
 ```
-`struct trie` is already declared as `struct trie(void *)` for convenience.
 
-## Setting
+`struct trie` is already declared as `struct trie(void *)`.
 
-#### tr_setp(trie, key)
-Returns a pointer to the key's value, if `trie` already contains `key`. If it doesn't, `key` is created and a pointer to its value is returned, or `NULL` if `malloc()` failed.
+#### Setting
 
-#### tr_set(trie, key, value)
-Overwrites the key's value to `value` and returns _1_, if `trie` already contains `key`. If it doesn't, `key` is created, its value is set to `value` and _1_ is returned, or _0_ if `malloc()` failed, in which case `value` is not evaluated (means if `value` is equal to `strdup("bla")`, then `strdup()` is _not_ called).
+  * `tr_setp(trie, key)`
+  * `tr_set(trie, key, value)`
 
-## Getting
+#### Getting
 
-#### tr_getp(trie, key)
-Returns a pointer to the key's value, or `NULL` if it doesn't exist yet.
+  * `tr_getp(trie, key)`
+  * `tr_get(trie, key, ret)`
+  * `tr_has(trie, key)`
 
-#### tr_get(trie, key, ret)
-If `trie` contains `key`, then `ret` receives its value and _1_ is returned. Elsewise _0_ is returned and `ret` remains untouched.
+#### Deleting
 
-#### tr_has(trie, key)
-Returns _1_ if `trie` contains `key`, or _0_ if it doesn't.
+  * `tr_cut(trie, key)`
 
-## Deleting
+###### Note
 
-#### tr_cut(trie, key)
-Returns _1_ if `key` was successfully cut from `trie`, or _0_ if `trie` doesn't contain `key`.
+You can set a destructor function that is called for every key that is to be cut (either by `tr_cut()` or `tr_release()`):
 
-##### Note
-You can set a deconstructor function that is called for every key that is cut (either by `tr_cut()` or `tr_release()`):
 ```c
-    void mydtor(void *buf, void *some_ptr)
+    void mydtor(void *buf, void *userp)
     {
-        int value = *(int *)buf;
-        char *mes = some_ptr;
+        void *ptr = *(void **)buf;
+        size_t *cnt = userp;
 
-        /* If the trie contained pointers to allocated memory, you could free them here */
+        free(ptr);
+        printf("There are still %zu left.\n", --(*cnt));
     }
 
-    tr_setdtor(&mytrie, mydtor);
-    tr_setuserp(&mytrie, some_ptr); /* optional */
+    tr_setdtor(&myptrs, mydtor);
+    tr_setuserp(&myptrs, &ptrcount); /* optional */
 ```
 
-## Iterating
+In case your user pointer is the trie itself:  
+when using `tr_release()`, the trie's length is not updated before every key is cut, so accessing its length inside the destructor won't work.
 
-#### tr_iter(trie, callback, userp)
-`callback` is called for every key the trie contains with an optional arbitrary user pointer (in an unspecified order):
+#### Iterating
+
+  * `tr_iter(trie, callback, userp)`
+
 ```c
     struct strtrie trie(char *);
 
@@ -125,13 +140,16 @@ You can set a deconstructor function that is called for every key that is cut (e
     /* ... */
     tr_iter(&some_names, print_name, &some_names)
 ```
-Returns _1_ on success, or _0_ if `malloc()` failed, in which case `callback` is called not once.
 
-## Replacing malloc()
+#### Replacing malloc()
 
-You can use your own allocator functions:
 ```c
     tr_setmalloc(xmalloc);
     tr_setfree(xfree);
 ```
+
 This redirects further calls for any trie. Your `malloc()` replacement could e.g. just `exit(-1)` like GNU's `xmalloc()` if there is no memory left, so you spare checking every `tr_set()` and `tr_iter()` wether they succeeded, if you wouldn't react differently anyways.
+
+## License
+
+See [LICENSE](LICENSE).
