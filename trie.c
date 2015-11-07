@@ -8,22 +8,34 @@ struct trie_node {
 	void *buf[];
 };
 
-static tr_xalloc tr_xmalloc = malloc;
-static tr_xdealloc tr_xfree = free;
-
-void tr_setmalloc(tr_xalloc routine)
+void trie_cb_freevoidptr(void *buf, void *userp)
 {
-	tr_xmalloc = routine;
+	(void)userp;
+	free(*(void **)buf);
 }
 
-void tr_setfree(tr_xdealloc routine)
+void trie_cb_freecharptr(void *buf, void *userp)
 {
-	tr_xfree = routine;
+	(void)userp;
+	free(*(char **)buf);
+}
+
+static trie_xalloc_t trie_xmalloc = malloc;
+static trie_xdealloc_t trie_xfree = free;
+
+void trie_use_as_malloc(trie_xalloc_t routine)
+{
+	trie_xmalloc = routine;
+}
+
+void trie_use_as_free(trie_xdealloc_t routine)
+{
+	trie_xfree = routine;
 }
 
 static inline struct trie_node *createnode(char key, size_t size)
 {
-	struct trie_node *node = tr_xmalloc(sizeof(*node) + size);
+	struct trie_node *node = trie_xmalloc(sizeof(*node) + size);
 
 	if (!node)
 		return NULL;
@@ -33,7 +45,7 @@ static inline struct trie_node *createnode(char key, size_t size)
 	return node;
 }
 
-void *(tr_setp)(struct trieb *tr, const char *key)
+void *(trie_setp)(struct trieb *tr, const char *key)
 {
 	struct trie_node **node;
 	size_t height = 1;
@@ -58,13 +70,13 @@ void *(tr_setp)(struct trieb *tr, const char *key)
 	*node = createnode('\0', tr->sz);
 	if (!*node)
 		return NULL;
-	tr->len++;
+	tr->size++;
 	if (tr->maxh < height)
 		tr->maxh = height;
 	return &(*node)->buf;
 }
 
-void *(tr_getp)(struct trieb *tr, const char *key)
+void *(trie_getp)(struct trieb *tr, const char *key)
 {
 	struct trie_node *node;
 
@@ -82,7 +94,7 @@ void *(tr_getp)(struct trieb *tr, const char *key)
 }
 
 static int cutnode(struct trieb *tr, struct trie_node **node, const char *key,
-		   int sibling)
+                   int sibling)
 {
 	int retval;
 
@@ -102,7 +114,7 @@ static int cutnode(struct trieb *tr, struct trie_node **node, const char *key,
 	if (retval < 0) {
 		struct trie_node *next = (*node)->next;
 
-		tr_xfree(*node);
+		trie_xfree(*node);
 		*node = next;
 		if (sibling || *node)
 			retval = 1;
@@ -110,16 +122,16 @@ static int cutnode(struct trieb *tr, struct trie_node **node, const char *key,
 	return retval;
 }
 
-int (tr_cut)(struct trieb *tr, const char *key)
+int (trie_cut)(struct trieb *tr, const char *key)
 {
 	if (!cutnode(tr, &tr->root, key, 1))
 		return 0;
-	tr->len--;
+	tr->size--;
 	return 1;
 }
 
 static void walknode(struct trie_node *node, char *key, char *k,
-		     tr_itercb callb, void *userp)
+                     trie_itercb_t func, void *userp)
 {
 	struct trie_node *next;
 	char c;
@@ -129,33 +141,33 @@ static void walknode(struct trie_node *node, char *key, char *k,
 	next = node->next;
 	c = node->key;
 	*k = c;
-	walknode(node->children, key, k + 1, callb, userp);
+	walknode(node->children, key, k + 1, func, userp);
 	if (!c)
-		callb(key, &node->buf, userp);
-	walknode(next, key, k, callb, userp);
+		func(key, &node->buf, userp);
+	walknode(next, key, k, func, userp);
 }
 
-int (tr_iter)(struct trieb *tr, tr_itercb callb, void *userp)
+int (trie_iter)(struct trieb *tr, trie_itercb_t func, void *userp)
 {
 	char *key;
 
 	if (!tr->maxh)
 		return 1;
-	key = tr_xmalloc(tr->maxh);
+	key = trie_xmalloc(tr->maxh);
 	if (!key)
 		return 0;
-	walknode(tr->root, key, key, callb, userp);
-	tr_xfree(key);
+	walknode(tr->root, key, key, func, userp);
+	trie_xfree(key);
 	return 1;
 }
 
-void destroynode(struct trieb *tr, struct trie_node *node)
+void trie_destroynode(struct trieb *tr, struct trie_node *node)
 {
 	if (!node)
 		return;
-	destroynode(tr, node->next);
-	destroynode(tr, node->children);
+	trie_destroynode(tr, node->next);
+	trie_destroynode(tr, node->children);
 	if (!node->key && tr->dtor)
 		tr->dtor(&node->buf, tr->userp);
-	tr_xfree(node);
+	trie_xfree(node);
 }
