@@ -42,22 +42,6 @@ struct trie_double trie(double);
 struct trie_char trie(char);
 struct trie_charptr trie(char *);
 
-#ifndef TRIE_STRUCT_ONLY
-
-/* alternative, shorter typedef-syntax */
-#define Trie(type) struct trie(type)
-
-typedef Trie(void *) Trie;
-typedef Trie(int) Trie_int;
-typedef Trie(long) Trie_long;
-typedef Trie(long long) Trie_vlong;
-typedef Trie(size_t) Trie_size_t;
-typedef Trie(double) Trie_double;
-typedef Trie(char) Trie_char;
-typedef Trie(char *) Trie_charptr;
-
-#endif
-
 /* predefined callbacks */
 void trie_cb_freevoidptr(void *buf, void *userp);
 void trie_cb_freecharptr(void *buf, void *userp);
@@ -110,14 +94,16 @@ void trie_use_as_free(trie_xdealloc_t routine);
  * @tr: typed pointer to the initialized trie
  * @_dtor: routine that releases a removed key's value
  */
-#define trie_setdtor(tr, _dtor) ((tr)->s.dtor = (_dtor), (void)0)
+#define trie_setdtor(tr, _dtor) \
+	((tr)->s.dtor = (_dtor), (void)0)
 
  /**
- * trie_setuserp() - set a trie's user-pointer for its ctor/dtor
+ * trie_setuserp() - set a trie's user-pointer for the dtor
  * @tr: typed pointer to the initialized trie
  * @ptr: pointer that gets passed to the callbacks
  */
-#define trie_setuserp(tr, ptr) ((tr)->s.userp = (ptr), (void)0)
+#define trie_setuserp(tr, ptr) \
+	((tr)->s.userp = (ptr), (void)0)
 
 /**
  * trie_clear() - empty a trie
@@ -137,7 +123,8 @@ void trie_use_as_free(trie_xdealloc_t routine);
  *
  * Return: When @key was found 1, or otherwise 0.
  */
-#define trie_has(tr, key) ((trie_getp)(&(tr)->s, (key)) != NULL)
+#define trie_has(tr, key) \
+	(trie_getp((tr), (key)) != NULL)
 
 /**
  * trie_set() - set a given key's value in a trie
@@ -153,7 +140,7 @@ void trie_use_as_free(trie_xdealloc_t routine);
  *	with struct-literals, additionally, it is not evaluated if trie_set()
  *	failed (so e.g. `strdup(s)` has no effect on failure).
  */
-#define trie_set(tr, key, ...) \
+#define trie_set(tr, key, ...)                  \
 	(((tr)->ptr = trie_setp((tr), (key))) ? \
 	 (*(tr)->ptr = (__VA_ARGS__), 1) : 0)
 
@@ -166,8 +153,8 @@ void trie_use_as_free(trie_xdealloc_t routine);
  *
  * Return: Pointer to the key's value, or NULL if malloc() failed.
  */
-#define trie_setp(tr, key) \
-	(((tr)->ptr = (trie_setp)(&(tr)->s, (key))) ? \
+#define trie_setp(tr, key)                              \
+	(((tr)->ptr = (trie_setp)(&(tr)->s, (key))) ?   \
 	 ((tr)->size = (tr)->s.size, (tr)->ptr) : NULL)
 
 /**
@@ -188,7 +175,8 @@ void trie_use_as_free(trie_xdealloc_t routine);
  *
  * Return: Pointer to the key's value, or NULL if there is no such key.
  */
-#define trie_getp(tr, key) trie_getp(&(tr)->s, (key))
+#define trie_getp(tr, key) \
+	(trie_getp)(&(tr)->s, (key))
 
 /**
  * trie_cut() - remove a given key from a trie
@@ -210,6 +198,7 @@ void trie_use_as_free(trie_xdealloc_t routine);
  *
  * Note!: Within @func you can use trie_cut(), but only on the actual element.
  */
-#define trie_iter(tr, func, userp) (trie_iter)(&(tr)->s, (func), (userp))
+#define trie_iter(tr, func, userp) \
+	(trie_iter)(&(tr)->s, (func), (userp))
 
 #endif /* TRIE_H */
