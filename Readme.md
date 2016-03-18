@@ -6,7 +6,6 @@ A type-safe and generic C99-compliant associative array (`string => T`) implemen
 
 ```c
     struct trie(double) t;
-    /*     Trie(double) t; */
     double ret;
 
     trie_init(&t);
